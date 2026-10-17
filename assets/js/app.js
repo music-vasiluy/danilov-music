@@ -7,8 +7,8 @@
 
   const CONTACTS = {
     email: "vasilijdanilov93@gmail.com",
-    phoneDisplay: "8 913 700-89-60",
-    phoneTel: "+79137008960",
+    phoneDisplay: "+7 913 904-61-82",
+    phoneTel: "+79139046182",
     telegram: "https://t.me/Danilov_Vasilii_music",
   };
 

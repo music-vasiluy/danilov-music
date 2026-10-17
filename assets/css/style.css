@@ -694,6 +694,13 @@ p { margin: 0; }
 
 .about-card h3 { font-size: 1.35rem; margin-bottom: 12px; }
 
+.about-card .about-alias {
+  color: var(--muted-2);
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  margin: -6px 0 16px;
+}
+
 .about-card p {
   color: var(--muted);
   margin-bottom: 24px;
