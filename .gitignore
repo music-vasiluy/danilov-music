@@ -1,0 +1,5 @@
+# служебные файлы
+*.log
+.env
+Thumbs.db
+desktop.ini
