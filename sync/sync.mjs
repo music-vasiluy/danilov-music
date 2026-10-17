@@ -275,8 +275,16 @@ async function buildSong(messages) {
 
   const id = songIdFor(first);
   const isImport = Boolean(first.chat && first.chat.type === "private");
+  // Если у файла нет тега названия — берём имя файла из Telegram (чистое, без .mp3 и «(1)»).
+  const fileTitle = (media.fileName || "")
+    .replace(/\.(mp3|m4a|wav|ogg|opus|flac|aac|mp4|mpeg|aiff|aif)$/i, "")
+    .replace(/(?:\s*\(\d+\))+\s*$/g, "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const title = (media.title || "").trim() ||
     (caption ? caption.split("\n")[0].trim().slice(0, 80) : "") ||
+    fileTitle ||
     `Песня от ${originalDate.toLocaleDateString("ru-RU")}`;
 
   let audioPath = null;
