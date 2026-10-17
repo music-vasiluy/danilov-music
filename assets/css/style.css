@@ -995,6 +995,126 @@ p { margin: 0; }
   transform: translate(-50%, 0);
 }
 
+/* ---------- Плеер внизу экрана ---------- */
+
+.player-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2500;
+  background: rgba(29, 22, 16, 0.94);
+  border-top: 1px solid var(--line-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: dock-in 0.32s ease both;
+}
+
+@keyframes dock-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+.dock-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.dock-info {
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 28%;
+}
+
+.dock-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.dock-title {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-track { min-width: 120px; }
+
+.dock-close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.dock-close:hover {
+  color: var(--cream);
+  background: rgba(230, 196, 143, 0.08);
+}
+
+.dock-close svg { width: 18px; height: 18px; fill: currentColor; }
+
+body.has-dock { padding-bottom: 86px; }
+
+body.has-dock .toast { bottom: 102px; }
+
+/* Текущая песня в списке */
+
+.song.is-current .song-title { color: var(--gold-bright); }
+
+.song.is-current .song-cover { border-color: var(--line-strong); }
+
+/* ---------- Караоке (текст с подсветкой) ---------- */
+
+.lyrics-karaoke .lyrics-body {
+  display: block;
+  height: calc(1.75em * 4);
+  overflow: hidden;
+  position: relative;
+}
+
+.lyrics-lines {
+  transition: transform 0.35s ease;
+}
+
+.lyrics-line {
+  line-height: 1.75;
+  min-height: 1.75em;
+  color: var(--muted-2);
+  transition: color 0.3s ease;
+}
+
+.lyrics-line.is-active { color: var(--cream); }
+
+.lyrics-line.is-past { color: rgba(131, 114, 92, 0.5); }
+
+.lyrics-line .w { transition: color 0.15s ease; }
+
+.lyrics-line .w.is-current { color: var(--gold-bright); }
+
+@media (max-width: 720px) {
+  .dock-label { display: none; }
+  .dock-info { max-width: 36%; }
+  .dock-inner { gap: 12px; }
+}
+
 /* ---------- Адаптив ---------- */
 
 @media (max-width: 960px) {

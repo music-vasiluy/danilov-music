@@ -20,7 +20,7 @@
   <meta property="og:locale" content="ru_RU">
 
   <link rel="stylesheet" href="assets/fonts/fonts.css">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css?v=2">
 </head>
 <body id="top">
 
@@ -31,8 +31,8 @@
         <span class="brand-name">Данила Васильев</span>
       </a>
       <nav class="nav" aria-label="Основная навигация">
-        <a href="#songs">Песни</a>
         <a href="#about">О музыке</a>
+        <a href="#songs">Песни</a>
         <a href="#contacts">Контакты</a>
       </nav>
       <a class="btn btn-outline btn-sm header-tg" href="https://t.me/Danilov_Vasilii_music" target="_blank" rel="noopener">
@@ -69,38 +69,10 @@
       </div>
     </section>
 
-    <section id="songs" class="section">
-      <div class="container">
-        <header class="section-head">
-          <span class="section-index" aria-hidden="true">01</span>
-          <div>
-            <h2>Песни</h2>
-            <p class="section-hint">Список обновляется из Telegram-канала автоматически.</p>
-          </div>
-        </header>
-        <div id="songs-list" class="songs-list" aria-live="polite">
-          <div class="songs-skeleton" aria-hidden="true">
-            <div class="skeleton-row"></div>
-            <div class="skeleton-row"></div>
-            <div class="skeleton-row"></div>
-          </div>
-        </div>
-        <div id="songs-empty" class="empty-state" hidden>
-          <span class="empty-note" aria-hidden="true">♪</span>
-          <h3>Скоро здесь появятся песни</h3>
-          <p>Первые записи уже готовятся. А пока — загляните в Telegram-канал, чтобы ничего не пропустить.</p>
-          <a class="btn btn-primary" href="https://t.me/Danilov_Vasilii_music" target="_blank" rel="noopener">Открыть канал</a>
-        </div>
-        <div class="songs-foot">
-          <a class="link-more" href="https://t.me/Danilov_Vasilii_music" target="_blank" rel="noopener">Смотреть все записи в Telegram-канале →</a>
-        </div>
-      </div>
-    </section>
-
     <section id="about" class="section">
       <div class="container">
         <header class="section-head">
-          <span class="section-index" aria-hidden="true">02</span>
+          <span class="section-index" aria-hidden="true">01</span>
           <div>
             <h2>О музыке</h2>
             <p class="section-hint">Несколько слов о песнях и их авторе.</p>
@@ -132,6 +104,34 @@
           </div>
           <figcaption>Из семейного архива</figcaption>
         </figure>
+      </div>
+    </section>
+
+    <section id="songs" class="section">
+      <div class="container">
+        <header class="section-head">
+          <span class="section-index" aria-hidden="true">02</span>
+          <div>
+            <h2>Песни</h2>
+            <p class="section-hint">Список обновляется из Telegram-канала автоматически.</p>
+          </div>
+        </header>
+        <div id="songs-list" class="songs-list" aria-live="polite">
+          <div class="songs-skeleton" aria-hidden="true">
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+          </div>
+        </div>
+        <div id="songs-empty" class="empty-state" hidden>
+          <span class="empty-note" aria-hidden="true">♪</span>
+          <h3>Скоро здесь появятся песни</h3>
+          <p>Первые записи уже готовятся. А пока — загляните в Telegram-канал, чтобы ничего не пропустить.</p>
+          <a class="btn btn-primary" href="https://t.me/Danilov_Vasilii_music" target="_blank" rel="noopener">Открыть канал</a>
+        </div>
+        <div class="songs-foot">
+          <a class="link-more" href="https://t.me/Danilov_Vasilii_music" target="_blank" rel="noopener">Смотреть все записи в Telegram-канале →</a>
+        </div>
       </div>
     </section>
 
@@ -180,6 +180,7 @@
         </div>
       </div>
     </section>
+
   </main>
 
   <footer class="site-footer">
@@ -204,22 +205,11 @@
         <p class="song-meta"></p>
         <div class="song-actions">
           <button class="btn btn-primary btn-sm" type="button" data-buy>Купить</button>
-          <button class="btn btn-outline btn-sm" type="button" data-listen aria-expanded="false" hidden>Слушать</button>
+          <button class="btn btn-outline btn-sm" type="button" data-listen hidden>Слушать</button>
           <button class="btn btn-outline btn-sm" type="button" data-lyrics aria-expanded="false" hidden>Текст</button>
         </div>
         <p class="song-note" hidden></p>
         <div class="song-panel" hidden>
-          <div class="player" hidden>
-            <button class="player-btn" type="button" aria-label="Воспроизвести">
-              <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.1v13.8c0 .8.9 1.3 1.6.9l10.8-6.9c.6-.4.6-1.4 0-1.8L9.6 4.2C8.9 3.8 8 4.3 8 5.1z"/></svg>
-              <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM13 4h4v16h-4z"/></svg>
-            </button>
-            <div class="player-track">
-              <div class="player-fill"></div>
-              <input class="player-range" type="range" min="0" max="1000" value="0" step="1" aria-label="Перемотка">
-            </div>
-            <span class="player-time">0:00</span>
-          </div>
           <div class="lyrics" hidden>
             <div class="lyrics-body"></div>
             <button class="lyrics-toggle" type="button" hidden>Показать полностью</button>
@@ -256,8 +246,30 @@
     </div>
   </dialog>
 
+  <!-- Плеер внизу экрана: не уезжает при прокрутке -->
+  <div id="player-dock" class="player-dock" hidden>
+    <div class="container dock-inner">
+      <button class="player-btn dock-toggle" type="button" aria-label="Воспроизвести" data-dock-toggle>
+        <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.1v13.8c0 .8.9 1.3 1.6.9l10.8-6.9c.6-.4.6-1.4 0-1.8L9.6 4.2C8.9 3.8 8 4.3 8 5.1z"/></svg>
+        <svg class="icon icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h4v16H7zM13 4h4v16h-4z"/></svg>
+      </button>
+      <div class="dock-info">
+        <span class="dock-label">Сейчас играет</span>
+        <span class="dock-title" id="dock-title"></span>
+      </div>
+      <div class="player-track dock-track">
+        <div class="player-fill" id="dock-fill"></div>
+        <input class="player-range" id="dock-range" type="range" min="0" max="1000" value="0" step="1" aria-label="Перемотка">
+      </div>
+      <span class="player-time" id="dock-time">0:00</span>
+      <button class="dock-close" type="button" aria-label="Закрыть плеер" data-dock-close>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6z"/></svg>
+      </button>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="assets/js/app.js"></script>
+  <script src="assets/js/app.js?v=2"></script>
 </body>
 </html>

@@ -21,7 +21,6 @@
   const toastEl = document.getElementById("toast");
 
   const byId = new Map();
-  const audios = [];
 
   /* ---------- Вспомогательное ---------- */
 
@@ -63,82 +62,295 @@
     }, 1900);
   }
 
-  /* ---------- Плеер ---------- */
+  /* ---------- Плеер внизу экрана ---------- */
 
-  function pauseAll(except) {
-    audios.forEach((a) => { if (a !== except && !a.paused) a.pause(); });
+  const dockEl = document.getElementById("player-dock");
+  const dockToggle = dockEl.querySelector("[data-dock-toggle]");
+  const dockCloseBtn = dockEl.querySelector("[data-dock-close]");
+  const dockTitleEl = document.getElementById("dock-title");
+  const dockRange = document.getElementById("dock-range");
+  const dockFill = document.getElementById("dock-fill");
+  const dockTime = document.getElementById("dock-time");
+
+  const audio = new Audio();
+  audio.preload = "none"; // файл загружается только в момент воспроизведения
+
+  let currentSong = null; // песня в нижнем плеере
+  let currentCard = null; // её карточка
+  let dockSeeking = false;
+  let tickId = 0;
+
+  const total = () =>
+    Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration
+      : Number(currentSong && currentSong.duration) || 0;
+
+  function paintDock() {
+    const d = total();
+    const ratio = d ? Math.min(1, audio.currentTime / d) : 0;
+    dockFill.style.width = `${ratio * 100}%`;
+    if (!dockSeeking) dockRange.value = String(Math.round(ratio * 1000));
+    dockTime.textContent = fmtDur(audio.currentTime) || "0:00";
   }
 
-  function initPlayer(node, song) {
-    const playerEl = node.querySelector(".player");
-    const btn = playerEl.querySelector(".player-btn");
-    const range = playerEl.querySelector(".player-range");
-    const fill = playerEl.querySelector(".player-fill");
-    const time = playerEl.querySelector(".player-time");
+  function syncLyrics() {
+    if (currentCard && typeof currentCard.__syncLyrics === "function") currentCard.__syncLyrics();
+  }
 
-    const audio = new Audio();
-    audio.preload = "metadata";
-    let started = false; // файл подгружаем лениво — только при первом воспроизведении
-    audios.push(audio);
+  function clearHighlight() {
+    document.querySelectorAll(".lyrics-line .w.is-current").forEach((el) => el.classList.remove("is-current"));
+    document.querySelectorAll(".lyrics-line.is-active").forEach((el) => el.classList.remove("is-active"));
+  }
 
-    let seeking = false;
-    const total = () =>
-      Number.isFinite(audio.duration) && audio.duration > 0
-        ? audio.duration
-        : Number(song.duration) || 0;
+  function tick() {
+    tickId = 0;
+    paintDock();
+    syncLyrics();
+    if (!audio.paused && !audio.ended) tickId = requestAnimationFrame(tick);
+  }
 
-    function paint() {
-      const d = total();
-      const ratio = d ? Math.min(1, audio.currentTime / d) : 0;
-      fill.style.width = `${ratio * 100}%`;
-      if (!seeking) range.value = String(Math.round(ratio * 1000));
-      time.textContent = fmtDur(audio.currentTime) || "0:00";
+  function ensureTick(on) {
+    if (on) {
+      if (!tickId) tickId = requestAnimationFrame(tick);
+    } else if (tickId) {
+      cancelAnimationFrame(tickId);
+      tickId = 0;
+      paintDock();
+      syncLyrics();
+    }
+  }
+
+  function markCard() {
+    document.querySelectorAll(".song.is-current").forEach((n) => n.classList.remove("is-current"));
+    if (currentCard) currentCard.classList.add("is-current");
+  }
+
+  function playSong(song, node) {
+    if (currentSong === song && !dockEl.hidden) {
+      // Та же песня: пауза / продолжить.
+      if (audio.paused) audio.play().catch(() => toast("Не удалось включить запись"));
+      else audio.pause();
+      return;
     }
 
-    audio.addEventListener("loadedmetadata", paint);
-    audio.addEventListener("timeupdate", paint);
-    audio.addEventListener("play", () => {
-      pauseAll(audio);
-      btn.dataset.playing = "true";
-      btn.setAttribute("aria-label", "Пауза");
-    });
-    audio.addEventListener("pause", () => {
-      btn.dataset.playing = "false";
-      btn.setAttribute("aria-label", "Воспроизвести");
-    });
-    audio.addEventListener("ended", () => {
-      audio.currentTime = 0;
-      btn.dataset.playing = "false";
-      btn.setAttribute("aria-label", "Воспроизвести");
-      paint();
-    });
+    clearHighlight();
+    if (currentCard && currentCard !== node && typeof currentCard.__resetLyrics === "function") {
+      currentCard.__resetLyrics();
+    }
+    currentSong = song;
+    currentCard = node;
+    dockTitleEl.textContent = song.title || "Без названия";
+    audio.src = song.audio; // загрузка стартует только сейчас
+    paintDock();
+    if (dockEl.hidden) {
+      dockEl.hidden = false;
+      document.body.classList.add("has-dock");
+    }
+    markCard();
+    audio.play().catch(() => toast("Не удалось включить запись"));
+  }
 
-    btn.addEventListener("click", () => {
-      if (audio.paused) {
-        // Ленивая загрузка: запрашиваем файл только теперь.
-        // Иначе страница тянет все песни разом, и воспроизведение не стартует.
-        if (!started) {
-          started = true;
-          audio.src = song.audio;
-        }
-        audio.play().catch(() => toast("Не удалось включить запись"));
-      } else {
-        audio.pause();
+  audio.addEventListener("loadedmetadata", () => { paintDock(); syncLyrics(); });
+  audio.addEventListener("play", () => {
+    dockToggle.dataset.playing = "true";
+    dockToggle.setAttribute("aria-label", "Пауза");
+    ensureTick(true);
+  });
+  audio.addEventListener("pause", () => {
+    dockToggle.dataset.playing = "false";
+    dockToggle.setAttribute("aria-label", "Воспроизвести");
+    ensureTick(false);
+  });
+  audio.addEventListener("ended", () => {
+    audio.currentTime = 0;
+    dockToggle.dataset.playing = "false";
+    ensureTick(false);
+  });
+
+  dockToggle.addEventListener("click", () => {
+    if (!currentSong) return;
+    if (audio.paused) audio.play().catch(() => toast("Не удалось включить запись"));
+    else audio.pause();
+  });
+
+  dockRange.addEventListener("input", () => {
+    dockSeeking = true;
+    const d = total();
+    if (d) audio.currentTime = (Number(dockRange.value) / 1000) * d;
+    paintDock();
+    syncLyrics();
+  });
+  const stopDockSeek = () => { dockSeeking = false; };
+  dockRange.addEventListener("change", stopDockSeek);
+  dockRange.addEventListener("pointerup", stopDockSeek);
+
+  dockCloseBtn.addEventListener("click", () => {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    clearHighlight();
+    if (currentCard && typeof currentCard.__resetLyrics === "function") currentCard.__resetLyrics();
+    currentSong = null;
+    currentCard = null;
+    dockEl.hidden = true;
+    document.body.classList.remove("has-dock");
+    markCard();
+  });
+
+  /* ---------- Текст песни (караоке с подсветкой слов) ---------- */
+
+  function num(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /* Приводит данные к виду [{t, words: [{w, t}]}] — с запасными вариантами. */
+  function normalizeTimed(raw, duration) {
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    const lines = [];
+    raw.forEach((item) => {
+      if (typeof item === "string") {
+        const words = item.trim().split(/\s+/).filter(Boolean).map((w) => ({ w, t: null }));
+        if (words.length) lines.push({ t: null, words });
+        return;
       }
+      if (!item || typeof item !== "object") return;
+      let words = null;
+      if (Array.isArray(item.words) && item.words.length) {
+        words = item.words
+          .map((w) => (typeof w === "string"
+            ? { w: w.trim(), t: null }
+            : { w: String((w && (w.w || w.word)) || "").trim(), t: num(w && (w.t != null ? w.t : w.start)) }))
+          .filter((w) => w.w);
+      }
+      const text = String(item.text || item.line || "").trim();
+      if (!words || !words.length) {
+        if (!text) return;
+        words = text.split(/\s+/).filter(Boolean).map((w) => ({ w, t: null }));
+      }
+      lines.push({ t: num(item.t != null ? item.t : item.start), words });
+    });
+    if (!lines.length) return null;
+
+    const dur = Number(duration) > 1 ? Number(duration) : lines.length * 4;
+    lines.forEach((ln, i) => {
+      if (ln.t == null) ln.t = 0.6 + Math.max(0, dur - 1.4) * (i / lines.length);
+    });
+    lines.sort((a, b) => a.t - b.t);
+    lines.forEach((ln, i) => {
+      const start = ln.t;
+      const end = i + 1 < lines.length ? Math.max(lines[i + 1].t, start + 0.4) : Math.max(dur, start + 0.4);
+      const step = (end - start) / Math.max(1, ln.words.length);
+      ln.words.forEach((w, j) => {
+        if (w.t == null) w.t = start + step * j;
+      });
+      ln.words.sort((a, b) => a.t - b.t);
+    });
+    return lines;
+  }
+
+  function setupKaraoke(node, song, timed) {
+    const lyricsSec = node.querySelector(".lyrics");
+    const body = node.querySelector(".lyrics-body");
+    const toggleBtn = node.querySelector(".lyrics-toggle");
+    const textBtn = node.querySelector("[data-lyrics]");
+
+    let built = false;
+    let linesWrap = null;
+    const lineEls = [];
+    const wordEls = [];
+    let lastLine = -2;
+    let lastWord = -2;
+
+    function build() {
+      built = true;
+      body.textContent = "";
+      linesWrap = document.createElement("div");
+      linesWrap.className = "lyrics-lines";
+      timed.forEach((ln) => {
+        const line = document.createElement("div");
+        line.className = "lyrics-line";
+        const spanList = [];
+        ln.words.forEach((w, i) => {
+          const span = document.createElement("span");
+          span.className = "w";
+          span.textContent = w.w;
+          line.appendChild(span);
+          spanList.push(span);
+          if (i < ln.words.length - 1) line.appendChild(document.createTextNode(" "));
+        });
+        linesWrap.appendChild(line);
+        lineEls.push(line);
+        wordEls.push(spanList);
+      });
+      body.appendChild(linesWrap);
+      lyricsSec.classList.add("lyrics-karaoke");
+      toggleBtn.hidden = true;
+    }
+
+    function reset() {
+      lastLine = -2;
+      lastWord = -2;
+      if (!built) return;
+      lineEls.forEach((el) => el.classList.remove("is-active", "is-past"));
+      wordEls.forEach((arr) => arr.forEach((el) => el.classList.remove("is-current")));
+      if (linesWrap) linesWrap.style.transform = "translateY(0)";
+    }
+
+    /* Обновляет окно из 4 строк и подсветку читаемого слова. */
+    function sync() {
+      if (!built || lyricsSec.hidden || currentSong !== song) return;
+      const t = audio.currentTime;
+
+      let li = -1;
+      for (let i = 0; i < timed.length; i++) {
+        if (timed[i].t <= t + 0.03) li = i;
+        else break;
+      }
+      let wi = -1;
+      if (li >= 0) {
+        const ws = timed[li].words;
+        for (let i = 0; i < ws.length; i++) {
+          if (ws[i].t <= t + 0.03) wi = i;
+          else break;
+        }
+      }
+
+      if (li !== lastLine) {
+        lineEls.forEach((el, i) => {
+          el.classList.toggle("is-active", i === li);
+          el.classList.toggle("is-past", i < li);
+        });
+        const start = li >= 0 ? Math.min(li, lineEls.length - 1) : 0;
+        if (lineEls[start] && linesWrap) {
+          linesWrap.style.transform = `translateY(${-lineEls[start].offsetTop}px)`;
+        }
+      }
+
+      if (li !== lastLine || wi !== lastWord) {
+        if (lastLine >= 0 && lastWord >= 0 && wordEls[lastLine] && wordEls[lastLine][lastWord]) {
+          wordEls[lastLine][lastWord].classList.remove("is-current");
+        }
+        if (li >= 0 && wi >= 0 && wordEls[li] && wordEls[li][wi]) {
+          wordEls[li][wi].classList.add("is-current");
+        }
+        lastLine = li;
+        lastWord = wi;
+      }
+    }
+
+    textBtn.hidden = false;
+    textBtn.addEventListener("click", () => {
+      const open = lyricsSec.hidden;
+      if (open && !built) build();
+      lyricsSec.hidden = !open;
+      textBtn.setAttribute("aria-expanded", String(open));
+      node.querySelector(".song-panel").hidden = lyricsSec.hidden;
+      if (open) sync();
     });
 
-    range.addEventListener("input", () => {
-      seeking = true;
-      const d = total();
-      if (d) audio.currentTime = (Number(range.value) / 1000) * d;
-      paint();
-    });
-    const stopSeek = () => { seeking = false; };
-    range.addEventListener("change", stopSeek);
-    range.addEventListener("pointerup", stopSeek);
-
-    paint();
-    return audio;
+    node.__syncLyrics = sync;
+    node.__resetLyrics = reset;
   }
 
   /* ---------- Отрисовка песен ---------- */
@@ -167,26 +379,17 @@
     node.querySelector(".song-meta").textContent = meta;
 
     const panel = node.querySelector(".song-panel");
-    const playerEl = node.querySelector(".player");
     const lyricsSec = node.querySelector(".lyrics");
     const listenBtn = node.querySelector("[data-listen]");
     const textBtn = node.querySelector("[data-lyrics]");
     const refreshPanel = () => {
-      panel.hidden = playerEl.hidden && lyricsSec.hidden;
+      panel.hidden = lyricsSec.hidden;
     };
 
-    // Кнопка «Слушать» — раскрывает плеер под песней.
-    let audio = null;
+    // Кнопка «Слушать» — включает песню в плеере внизу экрана.
     if (song.audio) {
-      audio = initPlayer(node, song);
       listenBtn.hidden = false;
-      listenBtn.addEventListener("click", () => {
-        const open = playerEl.hidden;
-        playerEl.hidden = !open;
-        listenBtn.setAttribute("aria-expanded", String(open));
-        if (!open && !audio.paused) audio.pause();
-        refreshPanel();
-      });
+      listenBtn.addEventListener("click", () => playSong(song, node));
     } else if (song.audio_missing) {
       const note = node.querySelector(".song-note");
       note.textContent = song.audio_missing === "big"
@@ -195,9 +398,14 @@
       note.hidden = false;
     }
 
-    // Кнопка «Текст» — слова песни (первые 4 строки, дальше «Показать полностью»).
+    // Кнопка «Текст»: караоке с подсветкой читаемого слова (если есть тайминг),
+    // иначе — обычный показ первых 4 строк с кнопкой «Показать полностью».
+    const timed = normalizeTimed(song.lyrics_timed, song.duration);
     const lyricsText = String(song.lyrics || song.text || "").trim();
-    if (lyricsText) {
+
+    if (timed) {
+      setupKaraoke(node, song, timed);
+    } else if (lyricsText) {
       const body = node.querySelector(".lyrics-body");
       const toggle = node.querySelector(".lyrics-toggle");
 
@@ -228,7 +436,6 @@
   }
 
   function render(songs) {
-    audios.length = 0;
     byId.clear();
     listEl.textContent = "";
 
