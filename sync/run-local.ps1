@@ -60,4 +60,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-if ($changed) { Write-Log "Готово: новые песни опубликованы на сайте.
+if ($changed) { Write-Log "Готово: новые песни опубликованы на сайте." }
+else         { Write-Log "Новых песен нет." }
+exit 0
