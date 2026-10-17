@@ -78,7 +78,7 @@
 
     const audio = new Audio();
     audio.preload = "metadata";
-    audio.src = song.audio;
+    let started = false; // файл подгружаем лениво — только при первом воспроизведении
     audios.push(audio);
 
     let seeking = false;
@@ -115,6 +115,12 @@
 
     btn.addEventListener("click", () => {
       if (audio.paused) {
+        // Ленивая загрузка: запрашиваем файл только теперь.
+        // Иначе страница тянет все песни разом, и воспроизведение не стартует.
+        if (!started) {
+          started = true;
+          audio.src = song.audio;
+        }
         audio.play().catch(() => toast("Не удалось включить запись"));
       } else {
         audio.pause();
