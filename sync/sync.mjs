@@ -274,6 +274,7 @@ async function buildSong(messages) {
   if (!hasSongContent && !caption) return null;
 
   const id = songIdFor(first);
+  const isImport = Boolean(first.chat && first.chat.type === "private");
   const title = (media.title || "").trim() ||
     (caption ? caption.split("\n")[0].trim().slice(0, 80) : "") ||
     `Песня от ${originalDate.toLocaleDateString("ru-RU")}`;
