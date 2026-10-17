@@ -1,4 +1,4 @@
-/* Василий Данилов — сайт песен.
+/* Данила Васильев — сайт песен.
    Данные берутся из data/songs.json (его обновляет синхронизация с Telegram).
    Посмотреть оформление с примерами: откройте сайт с ?preview=demo */
 
@@ -257,7 +257,7 @@
       modalMail.href = `mailto:${CONTACTS.email}?subject=${subject}&body=${body}`;
     } else {
       modalSong.hidden = true;
-      modalMail.href = `mailto:${CONTACTS.email}?subject=${encodeURIComponent("Песни Василия Данилова")}`;
+      modalMail.href = `mailto:${CONTACTS.email}?subject=${encodeURIComponent("Песни Данилы Васильева")}`;
     }
     modal.showModal();
   }
