@@ -21,6 +21,10 @@
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import dns from "node:dns";
+
+// Некоторые домашние сети не поддерживают IPv6 — принудительно используем IPv4.
+dns.setDefaultResultOrder("ipv4first");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BOT_TOKEN = (process.env.BOT_TOKEN || "").trim();
@@ -49,17 +53,28 @@ const FILE_API = `${API_BASE}/file/bot${BOT_TOKEN}`;
 /* ---------- Telegram API ---------- */
 
 async function callTelegram(method, params = {}) {
-  const res = await fetch(`${API}/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(params),
-  });
-  const data = await res.json().catch(() => null);
-  if (!data || !data.ok) {
-    const desc = data && data.description ? data.description : `HTTP ${res.status}`;
-    throw new Error(`Telegram API «${method}»: ${desc}`);
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let res;
+    try {
+      res = await fetch(`${API}/${method}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(params),
+      });
+    } catch (err) {
+      lastError = err; // обрыв или таймаут — попробуем ещё раз
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+      continue;
+    }
+    const data = await res.json().catch(() => null);
+    if (!data || !data.ok) {
+      const desc = data && data.description ? data.description : `HTTP ${res.status}`;
+      throw new Error(`Telegram API «${method}»: ${desc}`);
+    }
+    return data.result;
   }
-  return data.result;
+  throw new Error(`Telegram API «${method}»: сеть недоступна (${lastError ? lastError.message : "?"})`);
 }
 
 /* ---------- Файлы ---------- */
@@ -97,7 +112,15 @@ async function downloadTelegramFile(fileId, relPath) {
       console.warn(`[sync] Файл слишком большой (${info.file_size} Б), скачивание пропущено`);
       return { relPath: null, tooBig: true, failed: false };
     }
-    const res = await fetch(`${FILE_API}/${info.file_path}`);
+    let res = null;
+    for (let attempt = 1; attempt <= 3 && !res; attempt += 1) {
+      try {
+        res = await fetch(`${FILE_API}/${info.file_path}`);
+      } catch (err) {
+        if (attempt === 3) throw err;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
     await mkdir(path.dirname(abs), { recursive: true });
@@ -234,16 +257,26 @@ async function buildSong(messages) {
     .join("\n\n")
     .trim();
 
+  // Пересланные сообщения хранят дату оригинала — используем её для сайта.
+  const origin = first.forward_origin;
+  const originalDate = origin && origin.date ? new Date(origin.date * 1000) : new Date(first.date * 1000);
+
   // Главное медиа: аудио важнее фото.
   const mediaMsg = messages.find((m) => m.audio || m.voice || m.document || m.video || m.video_note || m.animation) || first;
   const media = describeMedia(mediaMsg);
 
   if (media.kind === "other" && !caption) return null; // стикер без подписи и т.п.
 
-  const id = `tg-${first.message_id}`;
+  // Фото без подписи и без аудио на сайте не нужно (просто картинка из чата).
+  const hasSongContent = messages.some(
+    (m) => m.audio || m.voice || (m.document && (m.document.mime_type || "").startsWith("audio/")) || m.video
+  );
+  if (!hasSongContent && !caption) return null;
+
+  const id = songIdFor(first);
   const title = (media.title || "").trim() ||
     (caption ? caption.split("\n")[0].trim().slice(0, 80) : "") ||
-    `Песня от ${new Date(first.date * 1000).toLocaleDateString("ru-RU")}`;
+    `Песня от ${originalDate.toLocaleDateString("ru-RU")}`;
 
   let audioPath = null;
   let audioMissing = null;
@@ -276,16 +309,45 @@ async function buildSong(messages) {
     id,
     title,
     performer: media.performer || null,
-    date: new Date(first.date * 1000).toISOString(),
+    date: originalDate.toISOString(),
     duration: media.duration || null,
     media: MEDIA_MAP[media.kind] || "text",
     audio: audioPath,
     audio_missing: audioMissing,
     cover: coverPath,
     text: caption || null,
-    tg_link: MESSAGE_LINK(first.message_id),
+    tg_link: isImport ? null : MESSAGE_LINK(first.message_id),
     message_id: first.message_id,
   };
+}
+
+/** id песни: tg- у сообщений группы/канала, imp- у пересланных боту в личку. */
+const songIdFor = (msg) => `${msg.chat && msg.chat.type === "private" ? "imp" : "tg"}-${msg.message_id}`;
+
+/** Сообщение стоит показывать на сайте? (песни — да; болтовню в группе — нет) */
+function shouldInclude(msg) {
+  const chatType = msg.chat ? msg.chat.type : "";
+  const caption = (msg.caption || "").trim();
+  const text = (msg.text || "").trim();
+  const audioish = Boolean(
+    msg.audio ||
+      msg.voice ||
+      (msg.document && (msg.document.mime_type || "").startsWith("audio/")) ||
+      msg.video
+  );
+  const photoish = Boolean(msg.photo || msg.video_note || msg.animation || msg.document);
+
+  if (chatType === "channel") return true; // в канале каждый пост — это контент
+
+  if (chatType === "private") {
+    // Боту в личку пересылают старые песни — берём только пересланные сообщения.
+    return Boolean(msg.forward_origin) && (audioish || photoish || caption || text);
+  }
+
+  // Группа: песни — это аудио и файлы; фото и видео — только с подписью.
+  if (audioish) return true;
+  if ((msg.photo || msg.video || msg.video_note || msg.animation) && caption) return true;
+  return false;
 }
 
 /* ---------- Основной процесс ---------- */
@@ -297,7 +359,7 @@ async function main() {
   const updates = await callTelegram("getUpdates", {
     offset: Number(state.offset) || 0,
     limit: 100,
-    allowed_updates: ["channel_post", "edited_channel_post"],
+    allowed_updates: ["channel_post", "edited_channel_post", "message", "edited_message"],
     timeout: 0,
   });
 
@@ -314,12 +376,13 @@ async function main() {
 
   for (const update of updates) {
     maxUpdateId = Math.max(maxUpdateId, update.update_id);
-    const msg = update.channel_post || update.edited_channel_post;
+    const msg = update.channel_post || update.edited_channel_post || update.message || update.edited_message;
     if (!msg) continue;
 
+    const chatType = msg.chat ? msg.chat.type : "";
     const username = (msg.chat && msg.chat.username) || "";
-    if (username.toLowerCase() !== CHANNEL.replace(/^@/, "").toLowerCase()) {
-      console.log(`[sync] Пропуск сообщения из чужого канала: @${username}`);
+    if (chatType !== "private" && username.toLowerCase() !== CHANNEL.replace(/^@/, "").toLowerCase()) {
+      console.log(`[sync] Пропуск сообщения из чужого чата: @${username}`);
       continue;
     }
     if (isServiceMessage(msg)) continue;
@@ -327,10 +390,13 @@ async function main() {
     const media = describeMedia(msg);
     if (media.kind === "other" && !msg.text && !msg.caption) continue;
 
-    if (update.edited_channel_post) {
+    if (update.edited_channel_post || update.edited_message) {
       edits.push(msg);
       continue;
     }
+
+    // В группе болтовню пропускаем, но все элементы фото-альбомов берём целиком.
+    if (!msg.media_group_id && !shouldInclude(msg)) continue;
 
     // Каждое аудио/видео/файл — отдельная песня; фото-альбом склеиваем по media_group_id.
     const solo = media.kind === "audio" || media.kind === "voice" || media.kind === "document" || media.kind === "video";
@@ -340,7 +406,7 @@ async function main() {
   }
 
   for (const messages of groups.values()) {
-    const songId = `tg-${messages[0].message_id}`;
+    const songId = songIdFor(messages[0]);
     if (known.has(songId)) {
       console.log(`[sync] Уже на сайте: ${songId}`);
       continue;
@@ -355,7 +421,7 @@ async function main() {
 
   // Правки подписей к уже выгруженным постам.
   for (const msg of edits) {
-    const song = known.get(`tg-${msg.message_id}`);
+    const song = known.get(songIdFor(msg));
     if (!song) continue;
     const caption = (msg.caption || msg.text || "").trim();
     if (caption && caption !== song.text) {
