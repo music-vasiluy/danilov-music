@@ -1,9 +1,9 @@
 name: Синхронизация песен из Telegram
 
 on:
-  schedule:
-    # каждые 15 минут; GitHub может запускать с задержкой — это нормально
-    - cron: "*/15 * * * *"
+  # Автозапуск по расписанию отключён: проверка идёт на вашем ПК
+  # каждый день в 15:00 (sync/run-local.ps1, задание «DanilovMusicSync»).
+  # Кнопка «Run workflow» запускает проверку вручную (нужен секрет BOT_TOKEN).
   workflow_dispatch:
 
 permissions:

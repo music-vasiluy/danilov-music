@@ -3,3 +3,6 @@
 .env
 Thumbs.db
 desktop.ini
+
+# токен бота — хранится только на компьютере
+sync/.token
