@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://music-vasiluy.github.io/danilov-music/sitemap.xml
