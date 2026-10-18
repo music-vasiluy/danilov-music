@@ -1184,3 +1184,34 @@ body.has-dock .toast { bottom: 102px; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ——— Приложение для Android ——— */
+.app-strip {
+  padding: 6px 0 30px;
+}
+.app-strip-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid rgba(208, 161, 94, .35);
+  border-radius: 18px;
+  padding: 18px 22px;
+  background: linear-gradient(180deg, rgba(208, 161, 94, .10), rgba(208, 161, 94, .03));
+}
+.app-strip-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--cream, #f3ead9);
+}
+.app-strip-note {
+  margin: 4px 0 0;
+  color: var(--muted, #a5947b);
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .app-strip-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}
